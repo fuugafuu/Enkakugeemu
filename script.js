@@ -1,8 +1,25 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
+const gameoverEl = document.getElementById('gameover');
 let drawing = false;
 let points = [];
+
+// 難易度ごとのしきい値
+const thresholds = {
+  easy: 40,
+  normal: 60,
+  hard: 80
+};
+let currentThreshold = thresholds.easy;
+
+// 難易度切り替え
+document.querySelectorAll('input[name="level"]').forEach(radio => {
+  radio.addEventListener('change', e => {
+    currentThreshold = thresholds[e.target.value];
+    clearCanvas();
+  });
+});
 
 // 初期リサイズ
 function resizeCanvas() {
@@ -13,7 +30,6 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// 入力イベント
 canvas.addEventListener('mousedown', startDraw);
 canvas.addEventListener('touchstart', startDraw);
 canvas.addEventListener('mousemove', draw);
@@ -31,9 +47,9 @@ function getPos(e) {
   }
 }
 
-// === 手ぶれ補正（スムージング） ===
+// 手ぶれ補正
 function smoothPoint(newPoint) {
-  const smoothFactor = 0.3; // 0〜1 小さいほど滑らか
+  const smoothFactor = 0.3;
   if (points.length === 0) return newPoint;
   let last = points[points.length-1];
   return {
@@ -43,6 +59,7 @@ function smoothPoint(newPoint) {
 }
 
 function startDraw(e) {
+  if (gameoverEl.style.display === "flex") return; // ゲームオーバー時は描けない
   drawing = true;
   points = [];
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -62,8 +79,8 @@ function draw(e) {
   ctx.stroke();
   points.push(pos);
 
-  // リアルタイムスコア更新（負荷軽減のため 5点ごと）
-  if (points.length % 5 === 0) calcScore();
+  // 描画中はリアルタイムスコア表示だけ
+  if (points.length % 5 === 0) calcScore(false);
 
   e.preventDefault();
 }
@@ -71,11 +88,10 @@ function draw(e) {
 function endDraw() {
   if (!drawing) return;
   drawing = false;
-  calcScore();
+  calcScore(true); // 離した時にゲームオーバー判定
 }
 
-// === スコア計算 ===
-function calcScore() {
+function calcScore(finalCheck) {
   if (points.length < 10) {
     scoreEl.innerText = "スコア: 線が短すぎます";
     return;
@@ -90,7 +106,6 @@ function calcScore() {
 
   scoreEl.innerText = "スコア: " + score.toFixed(1) + " 点";
 
-  // 演出
   if (score >= 90) {
     scoreEl.style.color = "#4caf50";
     scoreEl.style.transform = "scale(1.2)";
@@ -102,10 +117,16 @@ function calcScore() {
     scoreEl.style.transform = "scale(1.05)";
   }
   setTimeout(()=> scoreEl.style.transform = "scale(1)", 200);
+
+  // 最後に離した時だけゲームオーバー判定
+  if (finalCheck && score < currentThreshold) {
+    gameoverEl.style.display = "flex";
+  }
 }
 
 function clearCanvas() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   scoreEl.innerText = "スコア: まだ未計測";
   scoreEl.style.color = "#222";
+  gameoverEl.style.display = "none";
 }
