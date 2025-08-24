@@ -1,5 +1,6 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
 let drawing = false;
 let points = [];
 
@@ -12,6 +13,7 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
+// 入力イベント
 canvas.addEventListener('mousedown', startDraw);
 canvas.addEventListener('touchstart', startDraw);
 canvas.addEventListener('mousemove', draw);
@@ -29,11 +31,24 @@ function getPos(e) {
   }
 }
 
+// === 手ぶれ補正（スムージング） ===
+function smoothPoint(newPoint) {
+  const smoothFactor = 0.3; // 0〜1 小さいほど滑らか
+  if (points.length === 0) return newPoint;
+  let last = points[points.length-1];
+  return {
+    x: last.x + (newPoint.x - last.x) * smoothFactor,
+    y: last.y + (newPoint.y - last.y) * smoothFactor
+  };
+}
+
 function startDraw(e) {
   drawing = true;
   points = [];
-  ctx.beginPath();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
   let pos = getPos(e);
+  pos = smoothPoint(pos);
+  ctx.beginPath();
   ctx.moveTo(pos.x, pos.y);
   points.push(pos);
   e.preventDefault();
@@ -42,9 +57,14 @@ function startDraw(e) {
 function draw(e) {
   if (!drawing) return;
   let pos = getPos(e);
+  pos = smoothPoint(pos);
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
   points.push(pos);
+
+  // リアルタイムスコア更新（負荷軽減のため 5点ごと）
+  if (points.length % 5 === 0) calcScore();
+
   e.preventDefault();
 }
 
@@ -54,9 +74,10 @@ function endDraw() {
   calcScore();
 }
 
+// === スコア計算 ===
 function calcScore() {
   if (points.length < 10) {
-    document.getElementById('score').innerText = "スコア: 線が短すぎます";
+    scoreEl.innerText = "スコア: 線が短すぎます";
     return;
   }
   let cx = points.reduce((a,p)=>a+p.x,0)/points.length;
@@ -66,56 +87,25 @@ function calcScore() {
   let variance = rs.reduce((a,r)=>a+(r-rmean)**2,0)/rs.length;
   let stdev = Math.sqrt(variance);
   let score = Math.max(0, 100 - (stdev/rmean)*100);
-  
-  // スコア表示
-  let scoreEl = document.getElementById('score');
+
   scoreEl.innerText = "スコア: " + score.toFixed(1) + " 点";
 
-  // 🎉 演出：スコアによって色とアニメーションを変化
+  // 演出
   if (score >= 90) {
-    scoreEl.style.color = "#4caf50"; // 緑
-    scoreEl.style.transform = "scale(1.3)";
-    setTimeout(()=> scoreEl.style.transform = "scale(1)", 300);
-    confettiEffect();
-  } else if (score >= 70) {
-    scoreEl.style.color = "#ff9800"; // オレンジ
+    scoreEl.style.color = "#4caf50";
     scoreEl.style.transform = "scale(1.2)";
-    setTimeout(()=> scoreEl.style.transform = "scale(1)", 300);
-  } else {
-    scoreEl.style.color = "#f44336"; // 赤
+  } else if (score >= 70) {
+    scoreEl.style.color = "#ff9800";
     scoreEl.style.transform = "scale(1.1)";
-    setTimeout(()=> scoreEl.style.transform = "scale(1)", 300);
+  } else {
+    scoreEl.style.color = "#f44336";
+    scoreEl.style.transform = "scale(1.05)";
   }
+  setTimeout(()=> scoreEl.style.transform = "scale(1)", 200);
 }
 
 function clearCanvas() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  document.getElementById('score').innerText = "スコア: まだ未計測";
-  document.getElementById('score').style.color = "#222";
+  scoreEl.innerText = "スコア: まだ未計測";
+  scoreEl.style.color = "#222";
 }
-
-// 🎉 簡易コンフェッティ演出
-function confettiEffect() {
-  for (let i = 0; i < 20; i++) {
-    const conf = document.createElement("div");
-    conf.innerText = "✨";
-    conf.style.position = "absolute";
-    conf.style.left = (Math.random() * window.innerWidth) + "px";
-    conf.style.top = "-20px";
-    conf.style.fontSize = "20px";
-    conf.style.animation = `fall ${1 + Math.random()*1.5}s linear`;
-    document.body.appendChild(conf);
-    setTimeout(()=> conf.remove(), 2000);
-  }
-}
-
-// CSSアニメーションを追加
-const style = document.createElement('style');
-style.innerHTML = `
-@keyframes fall {
-  to {
-    transform: translateY(100vh) rotate(360deg);
-    opacity: 0;
-  }
-}`;
-document.head.appendChild(style);
