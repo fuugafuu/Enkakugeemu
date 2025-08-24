@@ -9,9 +9,22 @@
 <body>
   <h1>円をどれだけ綺麗に描けるか？</h1>
   <p>指でキャンバスに円を描いてください</p>
+
+  <!-- 難易度設定 -->
+  <div id="difficulty">
+    <label><input type="radio" name="level" value="easy" checked> Easy</label>
+    <label><input type="radio" name="level" value="normal"> Normal</label>
+    <label><input type="radio" name="level" value="hard"> Hard</label>
+  </div>
+
   <canvas id="canvas"></canvas>
   <div id="score">スコア: まだ未計測</div>
   <button onclick="clearCanvas()">クリア</button>
+
+  <!-- ゲームオーバー画面 -->
+  <div id="gameover">
+    <div class="overlay-text">GAME OVER</div>
+  </div>
 
   <script src="script.js"></script>
 </body>
